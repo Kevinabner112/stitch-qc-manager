@@ -1,0 +1,150 @@
+import { create } from 'zustand';
+import { db } from '../config/firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+
+// Keep initial mock data in case we want to seed
+const initialSuppliers = [
+  { id: 'SUP-001', name: 'Apex Industrial Materials', contact: 'contact@apex.example.com', status: 'Active' },
+  { id: 'SUP-002', name: 'Global Tech Components', contact: 'sales@globaltech.example.com', status: 'Active' },
+  { id: 'SUP-003', name: 'Nexus Fabrication', contact: 'admin@nexusfab.example.com', status: 'Inactive' },
+];
+
+const initialItems = [
+  { id: 'ITM-1001', name: 'Alloy Bracket Type A', description: 'Heavy duty mounting bracket', category: 'Hardware', defaultSupplier: 'Apex Industrial Materials', status: 'Active' },
+  { id: 'ITM-1002', name: 'Micro-Controller Board V2', description: 'Main logic board for assembly', category: 'Electronics', defaultSupplier: 'Global Tech Components', status: 'Active' },
+];
+
+const initialDefects = [
+  { code: 'DEF-CRK', name: 'Crack/Fracture', severity: 'Critical', description: 'Structural integrity compromised by visible crack.', status: 'Active' },
+  { code: 'DEF-DIM', name: 'Dimension NG', severity: 'Major', description: 'Part dimensions out of specified tolerance.', status: 'Active' },
+];
+
+export const useInspectionStore = create((set, get) => ({
+  inspections: [],
+  masterSuppliers: [],
+  masterItems: [],
+  masterDefects: [],
+  isInitialized: false,
+
+  // Start real-time sync with Firestore
+  initFirebaseListeners: () => {
+    if (get().isInitialized) return;
+
+    // Listen to inspections
+    onSnapshot(collection(db, 'inspections'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      // Sort by newest first (assuming we have timestamp, or just rely on id/order for now)
+      set({ inspections: data });
+    });
+
+    // Listen to suppliers
+    onSnapshot(collection(db, 'master_suppliers'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      set({ masterSuppliers: data });
+    });
+
+    // Listen to items
+    onSnapshot(collection(db, 'master_items'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      set({ masterItems: data });
+    });
+
+    // Listen to defects
+    onSnapshot(collection(db, 'master_defects'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      set({ masterDefects: data });
+    });
+
+    set({ isInitialized: true });
+  },
+
+  // Inspection Actions
+  addInspection: async (inspection) => {
+    try {
+      const newDoc = { ...inspection, createdAt: new Date().toISOString() };
+      await addDoc(collection(db, 'inspections'), newDoc);
+    } catch (error) {
+      console.error("Error adding inspection: ", error);
+    }
+  },
+  
+  // Dashboard mock metrics derived from state
+  getMetrics: () => {
+    const state = get();
+    if (state.inspections.length === 0) {
+      return { totalInspections: 0, totalQtyInspected: 0, totalQtyPassed: 0, acceptanceRate: 0 };
+    }
+
+    const totalInspections = state.inspections.length;
+    let totalQtyInspected = 0;
+    let totalQtyPassed = 0;
+    
+    state.inspections.forEach(i => {
+      totalQtyInspected += Number(i.qInspected) || 0;
+      totalQtyPassed += Number(i.qPassed) || 0;
+    });
+
+    const acceptanceRate = totalQtyInspected > 0 
+      ? Math.round((totalQtyPassed / totalQtyInspected) * 100 * 100) / 100 
+      : 0;
+
+    return { totalInspections, totalQtyInspected, totalQtyPassed, acceptanceRate };
+  },
+  
+  // Master Data Actions
+  deleteSupplier: async (idOrCode) => {
+    const target = get().masterSuppliers.find(s => s.id === idOrCode);
+    if (target?.firebaseId) await deleteDoc(doc(db, 'master_suppliers', target.firebaseId));
+  },
+  updateSupplier: async (updatedSupplier) => {
+    const { firebaseId, ...data } = updatedSupplier;
+    if (firebaseId) await updateDoc(doc(db, 'master_suppliers', firebaseId), data);
+  },
+  addSupplier: async (supplier) => {
+    await addDoc(collection(db, 'master_suppliers'), { ...supplier, id: `SUP-${Date.now()}` });
+  },
+  
+  deleteItem: async (idOrCode) => {
+    const target = get().masterItems.find(i => i.id === idOrCode);
+    if (target?.firebaseId) await deleteDoc(doc(db, 'master_items', target.firebaseId));
+  },
+  updateItem: async (updatedItem) => {
+    const { firebaseId, ...data } = updatedItem;
+    if (firebaseId) await updateDoc(doc(db, 'master_items', firebaseId), data);
+  },
+  addItem: async (item) => {
+    const newItem = { ...item };
+    if (!newItem.id) {
+      newItem.id = `ITM-${Date.now()}`;
+    }
+    await addDoc(collection(db, 'master_items'), newItem);
+  },
+  
+  deleteDefect: async (idOrCode) => {
+    const target = get().masterDefects.find(d => d.code === idOrCode);
+    if (target?.firebaseId) await deleteDoc(doc(db, 'master_defects', target.firebaseId));
+  },
+  updateDefect: async (updatedDefect) => {
+    const { firebaseId, ...data } = updatedDefect;
+    if (firebaseId) await updateDoc(doc(db, 'master_defects', firebaseId), data);
+  },
+  addDefect: async (defect) => {
+    await addDoc(collection(db, 'master_defects'), { ...defect, code: `DEF-${Date.now()}` });
+  },
+
+  // Helper to seed initial data if DB is empty
+  seedDatabase: async () => {
+    console.log("Seeding Database...");
+    const s = get();
+    if (s.masterSuppliers.length === 0) {
+      for (const sup of initialSuppliers) await s.addSupplier(sup);
+    }
+    if (s.masterItems.length === 0) {
+      for (const item of initialItems) await s.addItem(item);
+    }
+    if (s.masterDefects.length === 0) {
+      for (const def of initialDefects) await s.addDefect(def);
+    }
+    console.log("Database seeded successfully.");
+  }
+}));
