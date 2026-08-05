@@ -124,7 +124,6 @@ const MasterData = () => {
     if (activeTab === 'Suppliers') {
       return (
         <tr className="bg-surface-container-low border-b border-outline-variant">
-          <th className={thClass}>ID</th>
           <th className={thClass}>Supplier Name</th>
           <th className={thClass}>Contact</th>
           <th className={thClass}>Status</th>
@@ -134,7 +133,6 @@ const MasterData = () => {
     } else if (activeTab === 'Items') {
       return (
         <tr className="bg-surface-container-low border-b border-outline-variant">
-          <th className={thClass}>No Item</th>
           <th className={thClass}>Nama Item</th>
           <th className={thClass}>Category</th>
           <th className={thClass}>Default Supplier</th>
@@ -145,7 +143,6 @@ const MasterData = () => {
     } else if (activeTab === 'Defects') {
       return (
         <tr className="bg-surface-container-low border-b border-outline-variant">
-          <th className={thClass}>Code</th>
           <th className={thClass}>Defect Name</th>
           <th className={thClass}>Severity</th>
           <th className={`${thClass} hidden md:table-cell`}>Description</th>
@@ -161,7 +158,7 @@ const MasterData = () => {
     if (filteredData.length === 0) {
       return (
         <tr>
-          <td colSpan="6" className={`${tdClass} text-center text-on-surface-variant`}>
+          <td colSpan="5" className={`${tdClass} text-center text-on-surface-variant`}>
             No records found matching "{searchTerm}".
           </td>
         </tr>
@@ -171,7 +168,6 @@ const MasterData = () => {
     if (activeTab === 'Suppliers') {
       return filteredData.map(sup => (
         <tr key={sup.id} className="hover:bg-surface-container/30 transition-colors">
-          <td className={`${tdClass} text-[10px] sm:text-xs text-on-surface-variant font-mono whitespace-nowrap`}>{sup.id}</td>
           <td className={`${tdClass} font-medium text-on-surface`}>{sup.name}</td>
           <td className={`${tdClass} text-on-surface-variant`}>{sup.contact}</td>
           <td className={tdClass}>{renderStatus(sup.status)}</td>
@@ -186,7 +182,6 @@ const MasterData = () => {
     } else if (activeTab === 'Items') {
       return filteredData.map(itm => (
         <tr key={itm.id} className="hover:bg-surface-container/30 transition-colors">
-          <td className={`${tdClass} text-[10px] sm:text-xs text-on-surface-variant font-mono whitespace-nowrap`}>{itm.id}</td>
           <td className={tdClass}>
             <div className="font-medium text-on-surface">{itm.name}</div>
           </td>
@@ -204,7 +199,6 @@ const MasterData = () => {
     } else if (activeTab === 'Defects') {
       return filteredData.map(def => (
         <tr key={def.code} className="hover:bg-surface-container/30 transition-colors">
-          <td className={`${tdClass} text-[10px] sm:text-xs text-on-surface-variant font-mono whitespace-nowrap`}>{def.code}</td>
           <td className={`${tdClass} font-medium text-on-surface`}>{def.name}</td>
           <td className={tdClass}>{renderSeverity(def.severity)}</td>
           <td className={`${tdClass} text-on-surface-variant max-w-[150px] truncate hidden md:table-cell`} title={def.description}>{def.description}</td>

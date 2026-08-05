@@ -99,7 +99,7 @@ const MainLayout = () => {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[72px] pb-2 bg-surface/90 backdrop-blur-md border-t border-outline-variant shadow-lg px-4 mb-4 rounded-full mx-2 max-w-[calc(100%-16px)]">
+      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 pb-1 bg-surface/90 backdrop-blur-md border-t border-outline-variant shadow-lg px-2 mb-3 rounded-full mx-2 max-w-[calc(100%-16px)]">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -107,12 +107,12 @@ const MainLayout = () => {
               key={item.path} 
               to={item.path}
               className={isActive 
-                ? "flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full p-2 h-14 w-14 shadow-sm"
-                : "flex flex-col items-center justify-center text-on-secondary-container p-2 hover:text-primary transition-all active:scale-95 duration-150 w-16"
+                ? "flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full h-10 w-10 shadow-sm mx-1"
+                : "flex flex-col items-center justify-center text-on-secondary-container px-1 py-1 hover:text-primary transition-all active:scale-95 duration-150 flex-1"
               }
             >
-              <span className={`material-symbols-outlined ${isActive ? 'fill' : 'mb-1'}`}>{item.icon}</span>
-              {!isActive && <span className="text-label-caps text-[10px] uppercase mt-1">{item.label}</span>}
+              <span className={`material-symbols-outlined text-[20px] ${isActive ? 'fill' : 'mb-0.5'}`}>{item.icon}</span>
+              {!isActive && <span className="text-[8px] font-medium tracking-tight uppercase leading-none text-center">{item.label}</span>}
             </NavLink>
           );
         })}

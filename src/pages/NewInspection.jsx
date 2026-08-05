@@ -33,8 +33,8 @@ const NewInspection = () => {
 
   // Auto-select first item if items list changes
   useEffect(() => {
-    if (activeItems.length > 0 && !activeItems.some(i => i.name === itemNo)) {
-      setItemNo(activeItems[0].name);
+    if (activeItems.length > 0 && !activeItems.some(i => i.id === itemNo)) {
+      setItemNo(activeItems[0].id);
     } else if (activeItems.length === 0) {
       setItemNo('');
     }
@@ -50,9 +50,12 @@ const NewInspection = () => {
 
   const handleSubmit = () => {
     if (validation.isValid) {
+      const selectedItem = activeItems.find(i => i.id === itemNo);
+      
       addInspection({
         supplier,
         itemNo,
+        itemName: selectedItem ? selectedItem.name : itemNo,
         qtyReceived,
         qInspected: validation.qInspected,
         qPassed: validation.qPassed,
@@ -124,7 +127,7 @@ const NewInspection = () => {
             >
               <option value="">Select Item...</option>
               {activeItems.filter(i => i.status === 'Active').map(item => (
-                <option key={item.id} value={item.name}>{item.id} - {item.name}</option>
+                <option key={item.id} value={item.id}>{item.id} - {item.name}</option>
               ))}
             </select>
           </div>

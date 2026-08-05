@@ -9,16 +9,36 @@ const dataUrlToFile = async (dataUrl, filename) => {
 };
 
 const History = () => {
-  const { inspections } = useInspectionStore();
+  const { inspections, deleteInspection } = useInspectionStore();
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter inspections by date
+  // Filter inspections by date and search query
   const filteredInspections = useMemo(() => {
     return inspections.filter(item => {
+      // Search filter
+      if (searchQuery) {
+        const queryTerms = searchQuery.toLowerCase().split(' ').filter(Boolean);
+        const itemNoStr = String(item.itemNo || '').toLowerCase();
+        const itemNameStr = String(item.itemName || '').toLowerCase();
+        const supplierStr = String(item.supplier || '').toLowerCase();
+        
+        // Pastikan SEMUA kata kunci pencarian ada di salah satu kolom (Item No, Nama, atau Supplier)
+        const matchesAll = queryTerms.every(term => 
+          itemNoStr.includes(term) || itemNameStr.includes(term) || supplierStr.includes(term)
+        );
+        
+        if (!matchesAll) {
+          return false;
+        }
+      }
+
+      // Date filter
       if (!startDate && !endDate) return true;
       
       const itemDateStr = item.date || (item.createdAt ? item.createdAt.split('T')[0] : '');
@@ -45,7 +65,7 @@ const History = () => {
   const handleShare = async (item) => {
     try {
       const dateStr = item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID');
-      const text = `*Laporan Inspeksi QC*\nTanggal: ${dateStr}\nSupplier: ${item.supplier}\nItem: ${item.itemNo}\n\n*Hasil*\nInspected: ${item.qInspected}\nPassed: ${item.qPassed}\nRejected: ${item.qRejected}\n\n*Kategori Defect*: ${item.defectCategory || '-'}\n*Catatan*: ${item.notes || '-'}`;
+      const text = `*Laporan Inspeksi QC*\nTanggal: ${dateStr}\nSupplier: ${item.supplier}\nItem: ${item.itemNo} - ${item.itemName || 'N/A'}\n\n*Hasil*\nInspected: ${item.qInspected}\nPassed: ${item.qPassed}\nRejected: ${item.qRejected}\n\n*Kategori Defect*: ${item.defectCategory || '-'}\n*Catatan*: ${item.notes || '-'}`;
       
       let filesArray = [];
       if (item.photos && item.photos.length > 0) {
@@ -80,6 +100,7 @@ const History = () => {
       'Inspection ID': item.id,
       'Supplier': item.supplier,
       'Item No': item.itemNo,
+      'Item Name': item.itemName || '-',
       'Date': item.date || (item.createdAt ? item.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
       'Inspected Qty': item.qInspected,
       'Passed Qty': item.qPassed,
@@ -98,6 +119,32 @@ const History = () => {
     setExpandedId(prev => prev === id ? null : id);
   };
 
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredInspections.map(item => item.firebaseId || item.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelect = (e, id) => {
+    e.stopPropagation();
+    if (e.target.checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(itemId => itemId !== id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} data inspeksi terpilih?`)) {
+      selectedIds.forEach(id => {
+        deleteInspection(id);
+      });
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div className="p-lg max-w-[1440px] mx-auto pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-md gap-sm">
@@ -105,7 +152,24 @@ const History = () => {
           Inspection History
         </h1>
         
-        <div className="flex flex-col sm:flex-row gap-md items-end sm:items-center w-full md:w-auto">
+        <div className="flex flex-col lg:flex-row gap-md items-end lg:items-center w-full md:w-auto">
+          {/* Search Input */}
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md px-3 py-2 rounded-lg border border-primary/20 w-full sm:w-auto shadow-sm focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+            <span className="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+            <input 
+              type="text" 
+              placeholder="Cari Item No, Nama, Supplier..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-transparent text-sm border-none outline-none text-on-surface w-full sm:w-64"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-on-surface-variant hover:text-error">
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            )}
+          </div>
+
           {/* Date Filter */}
           <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-lg border border-primary/20 w-full sm:w-auto shadow-sm">
             <div className="flex flex-col">
@@ -127,16 +191,18 @@ const History = () => {
                 className="bg-transparent text-sm border-none outline-none text-on-surface font-medium"
               />
             </div>
-            {(startDate || endDate) && (
-              <button 
-                onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="ml-2 text-on-surface-variant hover:text-error transition-colors p-1"
-                title="Clear Filter"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            )}
           </div>
+          
+          {(startDate || endDate || searchQuery) && (
+            <button 
+              onClick={() => { setStartDate(''); setEndDate(''); setSearchQuery(''); }}
+              className="flex items-center gap-1 text-sm font-medium text-error hover:bg-error/10 px-3 py-2 rounded-lg transition-colors w-full sm:w-auto justify-center border border-error/20"
+              title="Clear Filters"
+            >
+              <span className="material-symbols-outlined text-[18px]">filter_alt_off</span>
+              Clear
+            </button>
+          )}
 
           <button 
             onClick={handleExport}
@@ -148,6 +214,30 @@ const History = () => {
           </button>
         </div>
       </div>
+      
+      {filteredInspections.length > 0 && (
+        <div className="flex justify-between items-center bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-primary/10 shadow-sm mb-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary"
+              checked={selectedIds.length === filteredInspections.length && filteredInspections.length > 0}
+              onChange={handleSelectAll}
+            />
+            <span className="text-body-md font-medium text-on-surface">Pilih Semua</span>
+          </label>
+          
+          {selectedIds.length > 0 && (
+            <button 
+              onClick={handleDeleteSelected}
+              className="flex items-center gap-2 text-error hover:text-error/80 font-medium transition-colors"
+            >
+              <span className="material-symbols-outlined">delete</span>
+              Hapus Terpilih ({selectedIds.length})
+            </button>
+          )}
+        </div>
+      )}
       
       {filteredInspections.length === 0 ? (
         <div className="text-center py-xl bg-white/60 backdrop-blur-sm rounded-xl border border-primary/10 shadow-sm mt-4">
@@ -170,6 +260,14 @@ const History = () => {
                   onClick={() => toggleExpand(itemId)}
                 >
                   <div className="flex items-center gap-4">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary cursor-pointer"
+                        checked={selectedIds.includes(itemId)}
+                        onChange={(e) => handleSelect(e, itemId)}
+                      />
+                    </div>
                     <div className="bg-gradient-to-br from-primary-container to-white p-3 rounded-xl text-center min-w-[75px] shadow-sm border border-primary/20">
                       <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{dateStr.split('/')[1]}/{dateStr.split('/')[2] || ''}</p>
                       <p className="text-2xl font-black text-primary leading-none mt-1">{dateStr.split('/')[0]}</p>
@@ -177,6 +275,7 @@ const History = () => {
                     <div>
                       <p className="text-label-caps text-on-surface-variant">ITEM</p>
                       <p className="font-bold text-on-surface text-lg">{item.itemNo}</p>
+                      <p className="text-body-sm text-on-surface-variant font-medium text-primary">{item.itemName || '-'}</p>
                       <p className="text-body-sm text-on-surface-variant">{item.supplier}</p>
                     </div>
                   </div>

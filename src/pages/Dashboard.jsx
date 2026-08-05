@@ -3,6 +3,7 @@ import { useInspectionStore } from '../store/useInspectionStore';
 import * as XLSX from 'xlsx';
 import StatCard from '../components/Dashboard/StatCard';
 import QualityTrendChart from '../components/Dashboard/QualityTrendChart';
+import SupplierComparisonChart from '../components/Dashboard/SupplierComparisonChart';
 import AnimatedCounter from '../components/Dashboard/AnimatedCounter';
 
 const Dashboard = () => {
@@ -13,12 +14,10 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
   const [supplierFilter, setSupplierFilter] = useState('');
 
-  // Filtered Data
-  const filteredData = useMemo(() => {
+  // Date-only Filtered Data for Supplier Comparison Chart
+  const dateFilteredData = useMemo(() => {
     return inspections.filter(item => {
       let match = true;
-      if (supplierFilter && item.supplier !== supplierFilter) match = false;
-      
       const itemDate = new Date(item.date || item.createdAt || Date.now());
       if (startDate) {
         const start = new Date(startDate);
@@ -32,7 +31,13 @@ const Dashboard = () => {
       }
       return match;
     });
-  }, [inspections, startDate, endDate, supplierFilter]);
+  }, [inspections, startDate, endDate]);
+
+  // Fully Filtered Data
+  const filteredData = useMemo(() => {
+    if (!supplierFilter) return dateFilteredData;
+    return dateFilteredData.filter(item => item.supplier === supplierFilter);
+  }, [dateFilteredData, supplierFilter]);
 
   // Calculated Metrics based on filtered data
   const metrics = useMemo(() => {
@@ -233,10 +238,13 @@ const Dashboard = () => {
         </div>
 
         {/* Main Chart */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           <QualityTrendChart data={filteredData} />
         </div>
       </div>
+      
+      {/* Supplier Comparison Chart */}
+      <SupplierComparisonChart data={dateFilteredData} />
     </div>
   );
 };

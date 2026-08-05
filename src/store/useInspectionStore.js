@@ -68,6 +68,14 @@ export const useInspectionStore = create((set, get) => ({
     }
   },
   
+  deleteInspection: async (firebaseId) => {
+    try {
+      await deleteDoc(doc(db, 'inspections', firebaseId));
+    } catch (error) {
+      console.error("Error deleting inspection: ", error);
+    }
+  },
+  
   // Dashboard mock metrics derived from state
   getMetrics: () => {
     const state = get();
