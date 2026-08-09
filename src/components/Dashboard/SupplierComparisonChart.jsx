@@ -8,20 +8,24 @@ const SupplierComparisonChart = ({ data }) => {
     const grouped = data.reduce((acc, curr) => {
       const sup = curr.supplier || 'Unknown';
       if (!acc[sup]) {
-        acc[sup] = { supplier: sup, qInspected: 0, qPassed: 0 };
+        acc[sup] = { supplier: sup, totalAccPercent: 0, validInspections: 0 };
       }
-      acc[sup].qInspected += Number(curr.qInspected) || 0;
-      acc[sup].qPassed += Number(curr.qPassed) || 0;
+      const inspected = Number(curr.qInspected) || 0;
+      const passed = Number(curr.qPassed) || 0;
+      if (inspected > 0) {
+        acc[sup].totalAccPercent += (passed / inspected) * 100;
+        acc[sup].validInspections += 1;
+      }
       return acc;
     }, {});
 
     return Object.values(grouped)
       .map(item => {
-        const accRate = item.qInspected > 0 ? (item.qPassed / item.qInspected) * 100 : 0;
+        const accRate = item.validInspections > 0 ? (item.totalAccPercent / item.validInspections) : 0;
         return {
           supplier: item.supplier,
           'Acceptance Rate': Number(accRate.toFixed(1)),
-          'Total Inspected': item.qInspected
+          'Total Inspections': item.validInspections
         };
       })
       .sort((a, b) => b['Acceptance Rate'] - a['Acceptance Rate']); // Sort highest to lowest
@@ -39,8 +43,8 @@ const SupplierComparisonChart = ({ data }) => {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-            <span className="text-body-sm text-on-surface-variant">Total Inspected:</span>
-            <span className="font-bold text-on-surface">{payload[0].payload['Total Inspected'].toLocaleString()} pcs</span>
+            <span className="text-body-sm text-on-surface-variant">Inspections:</span>
+            <span className="font-bold text-on-surface">{payload[0].payload['Total Inspections']} Batches</span>
           </div>
         </div>
       );

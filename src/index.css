@@ -4,7 +4,9 @@
 
 @layer base {
   body {
-    background-color: #f0f9ff; /* sky-50 */
+    background: linear-gradient(135deg, #013565 0%, #88ccee 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
     position: relative;
     z-index: 0;
   }
@@ -18,7 +20,7 @@
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
-    opacity: 0.35; /* Increased opacity to make it more visible */
+    opacity: 0.15; /* Adjusted for dark background */
     z-index: -1;
     pointer-events: none;
   }

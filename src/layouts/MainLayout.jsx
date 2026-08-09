@@ -1,5 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', background: '#fee2e2', color: '#991b1b', margin: '20px', borderRadius: '8px' }}>
+          <h2>Something went wrong.</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }}>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </details>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const MainLayout = () => {
   const location = useLocation();
@@ -95,7 +127,9 @@ const MainLayout = () => {
 
       {/* Main Content */}
       <main className={`flex-1 w-full max-w-[1440px] mx-auto p-container-margin md:p-lg md:mt-16 overflow-x-hidden ${installPrompt ? 'mt-12' : ''}`}>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* Mobile Bottom Nav */}

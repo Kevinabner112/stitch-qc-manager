@@ -33,25 +33,59 @@ export const useInspectionStore = create((set, get) => ({
     // Listen to inspections
     onSnapshot(collection(db, 'inspections'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-      // Sort by newest first (assuming we have timestamp, or just rely on id/order for now)
+      
+      // Sort by newest first globally
+      data.sort((a, b) => {
+        const getTimestamp = (item) => {
+          if (item.date) {
+            const parts = item.date.split('/');
+            if (parts.length === 3) {
+              const ts = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+              if (!isNaN(ts)) return ts;
+            }
+            const ts2 = new Date(item.date).getTime();
+            if (!isNaN(ts2)) return ts2;
+          }
+          if (item.createdAt) {
+            if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+            const ts = new Date(item.createdAt).getTime();
+            if (!isNaN(ts)) return ts;
+          }
+          return 0;
+        };
+        
+        const timeA = getTimestamp(a);
+        const timeB = getTimestamp(b);
+        
+        if (timeB === timeA) {
+          const idA = a.firebaseId || '';
+          const idB = b.firebaseId || '';
+          return idB.localeCompare(idA);
+        }
+        return timeB - timeA;
+      });
+      
       set({ inspections: data });
     });
 
     // Listen to suppliers
     onSnapshot(collection(db, 'master_suppliers'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       set({ masterSuppliers: data });
     });
 
     // Listen to items
     onSnapshot(collection(db, 'master_items'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      data.sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || ''));
       set({ masterItems: data });
     });
 
     // Listen to defects
     onSnapshot(collection(db, 'master_defects'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+      data.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       set({ masterDefects: data });
     });
 
@@ -73,6 +107,14 @@ export const useInspectionStore = create((set, get) => ({
       await deleteDoc(doc(db, 'inspections', firebaseId));
     } catch (error) {
       console.error("Error deleting inspection: ", error);
+    }
+  },
+  
+  updateInspection: async (firebaseId, data) => {
+    try {
+      await updateDoc(doc(db, 'inspections', firebaseId), data);
+    } catch (error) {
+      console.error("Error updating inspection: ", error);
     }
   },
   
@@ -101,7 +143,7 @@ export const useInspectionStore = create((set, get) => ({
   
   // Master Data Actions
   deleteSupplier: async (idOrCode) => {
-    const target = get().masterSuppliers.find(s => s.id === idOrCode);
+    const target = get().masterSuppliers.find(s => s.firebaseId === idOrCode || s.id === idOrCode);
     if (target?.firebaseId) await deleteDoc(doc(db, 'master_suppliers', target.firebaseId));
   },
   updateSupplier: async (updatedSupplier) => {
@@ -109,11 +151,15 @@ export const useInspectionStore = create((set, get) => ({
     if (firebaseId) await updateDoc(doc(db, 'master_suppliers', firebaseId), data);
   },
   addSupplier: async (supplier) => {
-    await addDoc(collection(db, 'master_suppliers'), { ...supplier, id: `SUP-${Date.now()}` });
+    const newSupplier = { ...supplier };
+    if (!newSupplier.id) {
+      newSupplier.id = `SUP-${Date.now()}`;
+    }
+    await addDoc(collection(db, 'master_suppliers'), newSupplier);
   },
   
-  deleteItem: async (idOrCode) => {
-    const target = get().masterItems.find(i => i.id === idOrCode);
+  deleteItem: async (idOrKey) => {
+    const target = get().masterItems.find(i => i.firebaseId === idOrKey || i.id === idOrKey);
     if (target?.firebaseId) await deleteDoc(doc(db, 'master_items', target.firebaseId));
   },
   updateItem: async (updatedItem) => {
@@ -128,8 +174,8 @@ export const useInspectionStore = create((set, get) => ({
     await addDoc(collection(db, 'master_items'), newItem);
   },
   
-  deleteDefect: async (idOrCode) => {
-    const target = get().masterDefects.find(d => d.code === idOrCode);
+  deleteDefect: async (idOrKey) => {
+    const target = get().masterDefects.find(d => d.firebaseId === idOrKey || d.code === idOrKey);
     if (target?.firebaseId) await deleteDoc(doc(db, 'master_defects', target.firebaseId));
   },
   updateDefect: async (updatedDefect) => {

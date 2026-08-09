@@ -1,6 +1,25 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
+const parseItemDate = (item) => {
+  if (item.date) {
+    if (item.date.includes('/')) {
+      const parts = item.date.split('/');
+      if (parts.length === 3) {
+        const parsed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        if (!isNaN(parsed.getTime())) return parsed;
+      }
+    }
+    const parsed = new Date(item.date);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  if (item.createdAt) {
+    const parsed = new Date(item.createdAt);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+};
+
 const QualityTrendChart = ({ data }) => {
   const [timeRange, setTimeRange] = useState('30d'); // 7d, 30d, 3m, 6m, 1y
 
@@ -21,7 +40,7 @@ const QualityTrendChart = ({ data }) => {
     // Filter and group data
     // Assuming data contains createdAt ISO strings or timestamps
     const filtered = data.filter(item => {
-      const date = new Date(item.createdAt || item.date || Date.now());
+      const date = parseItemDate(item);
       return date >= cutoff;
     });
 
@@ -29,7 +48,7 @@ const QualityTrendChart = ({ data }) => {
     const isMonthly = ['3m', '6m', '1y'].includes(timeRange);
     
     const grouped = filtered.reduce((acc, curr) => {
-      const d = new Date(curr.createdAt || curr.date || Date.now());
+      const d = parseItemDate(curr);
       let key = '';
       let displayLabel = '';
       
@@ -42,12 +61,18 @@ const QualityTrendChart = ({ data }) => {
       }
       
       if (!acc[key]) {
-        acc[key] = { key, displayLabel, qInspected: 0, qPassed: 0, qRejected: 0 };
+        acc[key] = { key, displayLabel, totalAccPercent: 0, totalRejPercent: 0, validInspections: 0 };
       }
       
-      acc[key].qInspected += Number(curr.qInspected) || 0;
-      acc[key].qPassed += Number(curr.qPassed) || 0;
-      acc[key].qRejected += Number(curr.qRejected) || 0;
+      const inspected = Number(curr.qInspected) || 0;
+      const passed = Number(curr.qPassed) || 0;
+      const rejected = Number(curr.qRejected) || 0;
+
+      if (inspected > 0) {
+        acc[key].totalAccPercent += (passed / inspected) * 100;
+        acc[key].totalRejPercent += (rejected / inspected) * 100;
+        acc[key].validInspections += 1;
+      }
       
       return acc;
     }, {});
@@ -56,8 +81,8 @@ const QualityTrendChart = ({ data }) => {
     return Object.values(grouped)
       .sort((a, b) => a.key.localeCompare(b.key))
       .map(item => {
-        const accRate = item.qInspected > 0 ? (item.qPassed / item.qInspected) * 100 : 0;
-        const rejRate = item.qInspected > 0 ? (item.qRejected / item.qInspected) * 100 : 0;
+        const accRate = item.validInspections > 0 ? (item.totalAccPercent / item.validInspections) : 0;
+        const rejRate = item.validInspections > 0 ? (item.totalRejPercent / item.validInspections) : 0;
         return {
           name: item.displayLabel,
           'Acceptance Rate': Number(accRate.toFixed(2)),

@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useInspectionStore } from '../store/useInspectionStore';
-import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import html2canvas from 'html2canvas';
 import StatCard from '../components/Dashboard/StatCard';
 import QualityTrendChart from '../components/Dashboard/QualityTrendChart';
 import SupplierComparisonChart from '../components/Dashboard/SupplierComparisonChart';
 import AnimatedCounter from '../components/Dashboard/AnimatedCounter';
+import DefectParetoChart from '../components/Dashboard/DefectParetoChart';
+import SupplierScorecard from '../components/Dashboard/SupplierScorecard';
 
 const Dashboard = () => {
   const { inspections, masterSuppliers } = useInspectionStore();
@@ -41,61 +44,85 @@ const Dashboard = () => {
 
   // Calculated Metrics based on filtered data
   const metrics = useMemo(() => {
-    let totalQtyInspected = 0;
-    let totalQtyPassed = 0;
-    let totalQtyRejected = 0;
+    let totalAcceptanceRate = 0;
+    let totalRejectRate = 0;
+    let validInspections = 0;
 
     filteredData.forEach(i => {
-      totalQtyInspected += Number(i.qInspected) || 0;
-      totalQtyPassed += Number(i.qPassed) || 0;
-      totalQtyRejected += Number(i.qRejected) || 0;
+      const inspected = Number(i.qInspected) || 0;
+      const passed = Number(i.qPassed) || 0;
+      const rejected = Number(i.qRejected) || 0;
+      
+      if (inspected > 0) {
+        totalAcceptanceRate += (passed / inspected) * 100;
+        totalRejectRate += (rejected / inspected) * 100;
+        validInspections++;
+      }
     });
 
-    const acceptanceRate = totalQtyInspected > 0 ? (totalQtyPassed / totalQtyInspected) * 100 : 0;
-    const rejectRate = totalQtyInspected > 0 ? (totalQtyRejected / totalQtyInspected) * 100 : 0;
+    const averageAcceptance = validInspections > 0 ? totalAcceptanceRate / validInspections : 0;
+    const averageReject = validInspections > 0 ? totalRejectRate / validInspections : 0;
 
     return {
       totalInspections: filteredData.length,
-      totalQtyInspected,
-      totalQtyPassed,
-      totalQtyRejected,
-      acceptanceRate: Math.round(acceptanceRate),
-      rejectRate: Math.round(rejectRate)
+      validInspections,
+      acceptanceRate: Math.round(averageAcceptance),
+      rejectRate: Math.round(averageReject)
     };
   }, [filteredData]);
 
-  const handleExport = () => {
-    const exportData = filteredData.map(item => ({
-      ID: item.firebaseId || item.id,
-      Date: item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID'),
-      Supplier: item.supplier,
-      Item: item.itemNo,
-      'Qty Received': item.qtyReceived,
-      'Qty Inspected': item.qInspected,
-      'Qty Passed': item.qPassed,
-      'Qty Rejected': item.qRejected,
-      'Defect Category': item.defectCategory || '-',
-      Notes: item.notes || '-'
-    }));
+  const handleExport = async () => {
+    try {
+      // 1. Fetch template workbook
+      const response = await fetch('/template_qc_dashboard.xlsx');
+      if (!response.ok) throw new Error('Template file not found');
+      const arrayBuffer = await response.arrayBuffer();
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Dashboard_Report");
-    XLSX.writeFile(wb, `QC_Dashboard_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      // 2. Load into xlsx-populate
+      const XlsxPopulate = window.XlsxPopulate;
+      const wb = await XlsxPopulate.fromDataAsync(arrayBuffer);
+
+      // 3. Get Data Worksheet
+      const wsData = wb.sheet('QC_Data');
+      if (wsData) {
+        // Prepare rows
+        filteredData.forEach((item, index) => {
+          const rowIndex = index + 2; // Data starts at row 2
+          
+          wsData.cell(`A${rowIndex}`).value(item.firebaseId || item.id);
+          wsData.cell(`B${rowIndex}`).value(item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID'));
+          wsData.cell(`C${rowIndex}`).value(item.supplier);
+          wsData.cell(`D${rowIndex}`).value(item.itemNo);
+          wsData.cell(`E${rowIndex}`).value(Number(item.qtyReceived) || 0);
+          wsData.cell(`F${rowIndex}`).value(Number(item.qInspected) || 0);
+          wsData.cell(`G${rowIndex}`).value(Number(item.qPassed) || 0);
+          wsData.cell(`H${rowIndex}`).value(Number(item.qRejected) || 0);
+          wsData.cell(`I${rowIndex}`).value(item.defectCategory || '-');
+          wsData.cell(`J${rowIndex}`).value(item.notes || '-');
+        });
+      }
+
+      // 4. Save and trigger download
+      const blob = await wb.outputAsync();
+      saveAs(blob, `QC_Native_Dashboard_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error("Export template error:", err);
+      alert("Gagal memuat template Excel Native. Pastikan file template tersedia.");
+    }
   };
 
   return (
     <div className="flex flex-col gap-lg max-w-[1440px] mx-auto pb-24">
       {/* Header & Filters */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-md bg-white/60 backdrop-blur-md p-6 rounded-2xl border border-primary/10 shadow-sm">
-        <div>
-          <h1 className="text-headline-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-1">
+      <div className="flex flex-col items-center gap-md bg-white/60 backdrop-blur-md p-6 rounded-2xl border border-primary/10 shadow-sm">
+        <div className="w-full text-center">
+          <h1 className="text-headline-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-1" style={{ fontFamily: '"Kollektif", sans-serif' }}>
             Supplier Quality Dashboard
           </h1>
           <p className="text-body-md text-on-surface-variant">Real-time performance & inspection analytics.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center w-full lg:w-auto">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full mt-2">
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <select 
@@ -149,33 +176,28 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Primary Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Primary Metrics Grid & Charts Wrapped for Export */}
+      <div id="dashboard-charts-container" className="flex flex-col gap-6 w-full p-4 bg-surface-container-lowest/50 rounded-xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard 
-          title="Total Inspections" 
-          value={metrics.totalInspections} 
-          icon="fact_check" 
-          theme="neutral"
-        />
-        <StatCard 
-          title="Total Qty Inspected" 
-          value={metrics.totalQtyInspected} 
-          icon="inventory_2" 
-          valueSuffix="pcs"
+          title="Total Inspections (Batches)" 
+          value={metrics.totalInspections}
+          icon="inventory_2"
           theme="primary"
+          valueSuffix="Batches"
         />
         <StatCard 
-          title="Qty Passed" 
-          value={metrics.totalQtyPassed} 
-          icon="check_circle" 
-          valueSuffix="pcs"
+          title="Avg. Acceptance Rate" 
+          value={metrics.acceptanceRate}
+          isPercentage={true}
+          icon="check_circle"
           theme="success"
         />
         <StatCard 
-          title="Qty Rejected" 
-          value={metrics.totalQtyRejected} 
-          icon="cancel" 
-          valueSuffix="pcs"
+          title="Avg. Reject Rate" 
+          value={metrics.rejectRate}
+          isPercentage={true}
+          icon="cancel"
           theme="error"
         />
       </div>
@@ -244,7 +266,14 @@ const Dashboard = () => {
       </div>
       
       {/* Supplier Comparison Chart */}
-      <SupplierComparisonChart data={dateFilteredData} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SupplierComparisonChart data={dateFilteredData} />
+        <SupplierScorecard data={dateFilteredData} />
+      </div>
+
+      {/* Root Cause Analysis Chart */}
+      <DefectParetoChart data={filteredData} />
+      </div>
     </div>
   );
 };

@@ -21,20 +21,31 @@ const SupplierPerformance = () => {
   let totalPassed = 0;
   let totalRejected = 0;
   const defectCounts = {};
+  
+  let validInspectionsCount = 0;
+  let totalAcceptancePercentage = 0;
 
   supplierInspections.forEach(i => {
-    totalInspected += Number(i.qInspected) || 0;
-    totalPassed += Number(i.qPassed) || 0;
+    const inspected = Number(i.qInspected) || 0;
+    const passed = Number(i.qPassed) || 0;
     const r = Number(i.qRejected) || 0;
+    
+    totalInspected += inspected;
+    totalPassed += passed;
     totalRejected += r;
+    
+    if (inspected > 0) {
+      totalAcceptancePercentage += (passed / inspected) * 100;
+      validInspectionsCount++;
+    }
     
     if (r > 0 && i.defectCategory) {
       defectCounts[i.defectCategory] = (defectCounts[i.defectCategory] || 0) + r;
     }
   });
 
-  const acceptanceRate = totalInspected > 0 
-    ? (totalPassed / totalInspected) * 100 
+  const acceptanceRate = validInspectionsCount > 0 
+    ? totalAcceptancePercentage / validInspectionsCount 
     : 100;
     
   const overallQualityScore = acceptanceRate.toFixed(2);
@@ -131,7 +142,9 @@ const SupplierPerformance = () => {
       {/* Header & Selector */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-sm mb-sm">
         <div>
-          <h1 className="text-headline-lg-mobile md:text-headline-lg font-bold text-on-surface">Supplier Performance</h1>
+          <h1 className="text-headline-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+            Supplier Performance
+          </h1>
           <p className="text-body-md text-on-surface-variant">Analyze scorecard and defect metrics.</p>
         </div>
         <div className="relative w-full md:w-64">

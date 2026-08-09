@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useInspectionStore } from '../store/useInspectionStore';
 import MasterDataModal from '../components/MasterDataModal';
 import * as XLSX from 'xlsx';
@@ -12,16 +12,46 @@ const MasterData = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
 
+  // Collect unique suggestions based on active tab
+  const searchSuggestions = useMemo(() => {
+    const suggestions = new Set();
+    if (activeTab === 'Suppliers') {
+      masterSuppliers.forEach(s => { suggestions.add(s.name); suggestions.add(s.id); });
+    } else if (activeTab === 'Items') {
+      masterItems.forEach(i => { suggestions.add(i.name); suggestions.add(i.id); suggestions.add(i.category); });
+    } else if (activeTab === 'Defects') {
+      masterDefects.forEach(d => { suggestions.add(d.name); suggestions.add(d.code); suggestions.add(d.severity); });
+    }
+    return Array.from(suggestions).filter(Boolean).sort();
+  }, [masterSuppliers, masterItems, masterDefects, activeTab]);
+
   // Filtering logic
   const getFilteredData = () => {
     const term = searchTerm.toLowerCase();
-    switch (activeTab) {
+    switch(activeTab) {
       case 'Suppliers':
-        return masterSuppliers.filter(s => s.name.toLowerCase().includes(term) || s.id.toLowerCase().includes(term));
+        return masterSuppliers.filter(s => 
+          (s.name || '').toLowerCase().includes(term) || 
+          (s.id || '').toLowerCase().includes(term) ||
+          (s.contact || '').toLowerCase().includes(term) ||
+          (s.status || '').toLowerCase().includes(term)
+        );
       case 'Items':
-        return masterItems.filter(i => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term) || i.category.toLowerCase().includes(term));
+        return masterItems.filter(i => 
+          (i.name || '').toLowerCase().includes(term) || 
+          (i.id || '').toLowerCase().includes(term) || 
+          (i.category || '').toLowerCase().includes(term) ||
+          (i.defaultSupplier || '').toLowerCase().includes(term) ||
+          (i.status || '').toLowerCase().includes(term)
+        );
       case 'Defects':
-        return masterDefects.filter(d => d.name.toLowerCase().includes(term) || d.code.toLowerCase().includes(term));
+        return masterDefects.filter(d => 
+          (d.name || '').toLowerCase().includes(term) || 
+          (d.code || '').toLowerCase().includes(term) ||
+          (d.severity || '').toLowerCase().includes(term) ||
+          (d.description || '').toLowerCase().includes(term) ||
+          (d.status || '').toLowerCase().includes(term)
+        );
       default:
         return [];
     }
@@ -66,29 +96,45 @@ const MasterData = () => {
 
         let count = 0;
         for (const row of jsonData) {
-          if (activeTab === 'Suppliers') {
-             if (row.name) { 
-               await useInspectionStore.getState().addSupplier({ name: row.name, contact: row.contact || '', status: row.status || 'Active' }); 
-               count++; 
-             }
-          } else if (activeTab === 'Items') {
-             const itemName = row['Nama Item'] || row['nama item'] || row.name;
-             const itemNo = row['No Item'] || row['no item'] || row.id;
-             const defSupplier = row['default supplier'] || row['Default Supplier'] || row.defaultSupplier;
+          const hasItemFields = row['Nama Item'] || row['nama item'] || row['No Item'] || row['no item'] || row['Default Supplier'] || row['default supplier'];
+          const hasDefectFields = row['Severity'] || row['severity'] || row['Defect Name'] || row['defect name'];
+
+          if (hasItemFields || (activeTab === 'Items' && !row['Contact Information'] && !row['contact'])) {
+             const itemName = row['Nama Item'] || row['nama item'] || row.name || row.Item;
+             const itemNo = row['No Item'] || row['no item'] || row.id || row['Item No'];
+             const defSupplier = row['Default Supplier'] || row['default supplier'] || row.defaultSupplier || row.Supplier || row.supplier || '';
              
-             if (itemName) { 
+             if (itemName || itemNo) { 
                await useInspectionStore.getState().addItem({ 
                  id: itemNo ? String(itemNo) : `ITM-${Date.now()}`,
-                 name: String(itemName), 
-                 category: String(row.category || row.Category || ''), 
+                 name: itemName ? String(itemName) : String(itemNo), 
+                 category: String(row.category || row.Category || 'General'), 
                  defaultSupplier: String(defSupplier || ''), 
                  status: String(row.status || row.Status || 'Active') 
                }); 
                count++; 
              }
-          } else if (activeTab === 'Defects') {
-             if (row.name) { 
-               await useInspectionStore.getState().addDefect({ name: row.name, severity: row.severity || 'Minor', description: row.description || '', status: row.status || 'Active' }); 
+          } else if (hasDefectFields || activeTab === 'Defects') {
+             const defName = row['Defect Name'] || row['defect name'] || row.name;
+             if (defName) { 
+               await useInspectionStore.getState().addDefect({ 
+                 name: String(defName), 
+                 severity: String(row.severity || row.Severity || 'Minor'), 
+                 description: String(row.description || row.Description || ''), 
+                 status: String(row.status || row.Status || 'Active') 
+               }); 
+               count++; 
+             }
+          } else {
+             const supName = row['Supplier Name'] || row['supplier name'] || row['Supplier'] || row.supplier || row.name;
+             const contactInfo = row['Contact Information'] || row['contact information'] || row.contact || row.Contact || '';
+             
+             if (supName) { 
+               await useInspectionStore.getState().addSupplier({ 
+                 name: String(supName), 
+                 contact: String(contactInfo), 
+                 status: String(row.status || row.Status || 'Active') 
+               }); 
                count++; 
              }
           }
@@ -174,16 +220,17 @@ const MasterData = () => {
           <td className={tdClass}>
             <div className="flex justify-end gap-1 sm:gap-sm">
               <button onClick={() => handleEdit(sup)} className="p-1 text-secondary hover:text-primary transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">edit</span></button>
-              <button onClick={() => handleDelete(sup.id)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
+              <button onClick={() => handleDelete(sup.firebaseId || sup.id)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
             </div>
           </td>
         </tr>
       ));
     } else if (activeTab === 'Items') {
       return filteredData.map(itm => (
-        <tr key={itm.id} className="hover:bg-surface-container/30 transition-colors">
+        <tr key={itm.firebaseId || `${itm.id}_${itm.name}`} className="hover:bg-surface-container/30 transition-colors">
           <td className={tdClass}>
             <div className="font-medium text-on-surface">{itm.name}</div>
+            <div className="text-xs text-on-surface-variant font-data-mono">{itm.id}</div>
           </td>
           <td className={`${tdClass} text-on-surface-variant`}>{itm.category}</td>
           <td className={`${tdClass} text-on-surface-variant`}>{itm.defaultSupplier}</td>
@@ -191,7 +238,7 @@ const MasterData = () => {
           <td className={tdClass}>
             <div className="flex justify-end gap-1 sm:gap-sm">
               <button onClick={() => handleEdit(itm)} className="p-1 text-secondary hover:text-primary transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">edit</span></button>
-              <button onClick={() => handleDelete(itm.id)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
+              <button onClick={() => handleDelete(itm.firebaseId || itm.id)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
             </div>
           </td>
         </tr>
@@ -206,7 +253,7 @@ const MasterData = () => {
           <td className={tdClass}>
             <div className="flex justify-end gap-1 sm:gap-sm">
               <button onClick={() => handleEdit(def)} className="p-1 text-secondary hover:text-primary transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">edit</span></button>
-              <button onClick={() => handleDelete(def.code)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
+              <button onClick={() => handleDelete(def.firebaseId || def.code)} className="p-1 text-secondary hover:text-error transition-colors"><span className="material-symbols-outlined text-[16px] sm:text-[20px]">delete</span></button>
             </div>
           </td>
         </tr>
@@ -236,11 +283,17 @@ const MasterData = () => {
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
             <input 
               type="text" 
+              list="master-search-suggestions"
               placeholder="Search records..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-sm py-2 bg-surface-container-lowest border border-outline-variant rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-body-md placeholder-outline"
             />
+            <datalist id="master-search-suggestions">
+              {searchSuggestions.map((suggestion, idx) => (
+                <option key={idx} value={suggestion} />
+              ))}
+            </datalist>
           </div>
           
           {/* Seed Database (Only if empty) */}

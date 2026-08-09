@@ -8,6 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+      },
       manifest: {
         name: 'Stitch Quality Manager',
         short_name: 'Stitch QC',
@@ -26,4 +29,16 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'zustand'],
+          utils: ['xlsx', 'jspdf', 'html2canvas'],
+          charts: ['recharts']
+        }
+      }
+    }
+  }
 })

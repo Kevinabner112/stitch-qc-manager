@@ -70,11 +70,11 @@ const MasterDataModal = ({ isOpen, onClose, activeTab, initialData = null }) => 
       return (
         <>
           <div className="mb-4">
-            <label className="block text-body-md font-medium text-on-surface mb-xs">No Item *</label>
+            <label className="block text-body-md font-medium text-on-surface mb-xs">Item No. *</label>
             <input required type="text" name="id" value={formData.id || ''} onChange={handleChange} className="w-full rounded-md border border-outline-variant px-3 py-2 bg-surface-container-lowest" disabled={isEditing} />
           </div>
           <div className="mb-4">
-            <label className="block text-body-md font-medium text-on-surface mb-xs">Nama Item *</label>
+            <label className="block text-body-md font-medium text-on-surface mb-xs">Item Name *</label>
             <input required type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full rounded-md border border-outline-variant px-3 py-2 bg-surface-container-lowest" />
           </div>
           <div className="mb-4">
