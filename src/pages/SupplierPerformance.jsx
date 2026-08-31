@@ -145,7 +145,7 @@ const SupplierPerformance = () => {
           <h1 className="text-headline-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
             Supplier Performance
           </h1>
-          <p className="text-body-md text-on-surface-variant">Analyze scorecard and defect metrics.</p>
+          <p className="text-body-md text-white/90">Analyze scorecard and defect metrics.</p>
         </div>
         <div className="relative w-full md:w-64">
           <select 

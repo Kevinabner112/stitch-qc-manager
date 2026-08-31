@@ -7,22 +7,26 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['logo.png'],
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
       },
       manifest: {
-        name: 'Stitch Quality Manager',
-        short_name: 'Stitch QC',
+        name: 'QCInc',
+        short_name: 'QCInc',
         description: 'Full Stack Quality Control Inspection & Supplier Quality App',
         theme_color: '#0f172a',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
           {
-            src: 'icon.svg',
+            src: 'logo.png',
             sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]

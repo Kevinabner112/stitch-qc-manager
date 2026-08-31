@@ -1,8 +1,9 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import "dotenv/config";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDJQrbx7CBcKoPrqqaj0ZKhDA9r2_c7N0c",
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
   authDomain: "qc-inspection-a2c80.firebaseapp.com",
   projectId: "qc-inspection-a2c80",
   storageBucket: "qc-inspection-a2c80.firebasestorage.app",

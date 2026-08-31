@@ -1,9 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDJQrbx7CBcKoPrqqaj0ZKhDA9r2_c7N0c",
+export const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "qc-inspection-a2c80.firebaseapp.com",
   projectId: "qc-inspection-a2c80",
   storageBucket: "qc-inspection-a2c80.firebasestorage.app",
@@ -16,3 +17,4 @@ const app = initializeApp(firebaseConfig);
 // Initialize analytics only if in browser environment
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 export const db = getFirestore(app);
+export const auth = getAuth(app);

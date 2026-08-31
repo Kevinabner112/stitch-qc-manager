@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useInspectionStore } from '../store/useInspectionStore';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
+import { formatSingleShareText, formatBulkShareText } from '../utils/shareFormatter';
 
 const dataUrlToFile = async (dataUrl, filename) => {
   const res = await fetch(dataUrl);
@@ -88,9 +89,9 @@ const History = () => {
       return true;
     });
 
-    // Sort descending by date
+    // Sort descending by date, then by submission time
     filtered.sort((a, b) => {
-      const getTimestamp = (item) => {
+      const getDateTs = (item) => {
         if (item.date) {
           const parts = item.date.split('/');
           if (parts.length === 3) {
@@ -100,6 +101,10 @@ const History = () => {
           const ts2 = new Date(item.date).getTime();
           if (!isNaN(ts2)) return ts2;
         }
+        return 0;
+      };
+
+      const getCreatedTs = (item) => {
         if (item.createdAt) {
           if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
           const ts = new Date(item.createdAt).getTime();
@@ -108,16 +113,25 @@ const History = () => {
         return 0;
       };
       
-      const timeA = getTimestamp(a);
-      const timeB = getTimestamp(b);
+      const dateA = getDateTs(a);
+      const dateB = getDateTs(b);
       
-      // If timestamps are equal (e.g. same day but no time), fallback to firebaseId string comparison to ensure stable sort
-      if (timeB === timeA) {
-        const idA = a.firebaseId || '';
-        const idB = b.firebaseId || '';
-        return idB.localeCompare(idA);
+      if (dateB !== dateA) {
+        return dateB - dateA; // Sort by inspection date descending
       }
-      return timeB - timeA;
+      
+      // If same inspection date, sort by submission time descending
+      const createdA = getCreatedTs(a);
+      const createdB = getCreatedTs(b);
+      
+      if (createdB !== createdA) {
+        return createdB - createdA;
+      }
+      
+      // Fallback to ID for stable sort
+      const idA = a.firebaseId || '';
+      const idB = b.firebaseId || '';
+      return idB.localeCompare(idA);
     });
 
     return filtered;
@@ -125,8 +139,7 @@ const History = () => {
 
   const handleShare = async (item) => {
     try {
-      const dateStr = item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID');
-      const text = `*Laporan Inspeksi QC*\nTanggal: ${dateStr}\nSupplier: ${item.supplier}\nItem: ${item.itemNo} - ${item.itemName || 'N/A'}\n\n*Hasil*\nInspected: ${item.qInspected} ${item.uom || 'Pcs'}\nPassed: ${item.qPassed} ${item.uom || 'Pcs'}\nRejected: ${item.qRejected} ${item.uom || 'Pcs'}\n\n*Kategori Defect*: ${item.defectCategory || '-'}\n*Catatan*: ${item.notes || '-'}`;
+      const text = formatSingleShareText(item);
       
       let filesArray = [];
       if (item.photos && item.photos.length > 0) {
@@ -301,18 +314,11 @@ const History = () => {
     try {
       const selectedItems = filteredInspections.filter(item => selectedIds.includes(item.firebaseId || item.id));
       
-      let text = ``;
+      const text = formatBulkShareText(selectedItems);
       let allFiles = [];
 
       for (let i = 0; i < selectedItems.length; i++) {
         const item = selectedItems[i];
-        const dateStr = item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID');
-        text += `*Laporan Inspeksi QC*\nTanggal: ${dateStr}\nSupplier: ${item.supplier}\nItem: ${item.itemNo} - ${item.itemName || 'N/A'}\n\n*Hasil*\nInspected: ${item.qInspected} ${item.uom || 'Pcs'}\nPassed: ${item.qPassed} ${item.uom || 'Pcs'}\nRejected: ${item.qRejected} ${item.uom || 'Pcs'}\n\n*Kategori Defect*: ${item.defectCategory || '-'}\n*Catatan*: ${item.notes || '-'}`;
-        
-        if (i < selectedItems.length - 1) {
-          text += `\n\n========================\n\n`;
-        }
-        
         if (item.photos && item.photos.length > 0) {
           for (let j = 0; j < item.photos.length; j++) {
             const file = await dataUrlToFile(item.photos[j], `Evidence_Data${i+1}_${j + 1}.jpg`);
@@ -440,7 +446,7 @@ const History = () => {
       
       {/* Delete Bulk Action Bar */}
       {isSelectMode && (
-        <div className="flex flex-col sm:flex-row justify-between items-center bg-error-container/10 border border-error/20 p-3 rounded-lg mb-4 shadow-sm animate-in fade-in slide-in-from-top-4">
+        <div className="sticky top-[80px] z-40 flex flex-col sm:flex-row justify-between items-center bg-error-container/95 backdrop-blur-md border border-error/30 p-3 rounded-lg mb-4 shadow-lg animate-in fade-in slide-in-from-top-4">
           <span className="font-bold text-error mb-3 sm:mb-0">
             {selectedIds.length > 0 ? `${selectedIds.length} item terpilih` : 'Pilih data untuk dihapus'}
           </span>
@@ -450,6 +456,12 @@ const History = () => {
               className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-outline-variant hover:bg-surface-container-low rounded-lg text-xs font-bold transition-colors"
             >
               Batal Pilih
+            </button>
+            <button 
+              onClick={() => setSelectedIds(filteredInspections.map(item => item.firebaseId || item.id))}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-outline-variant hover:bg-surface-container-low rounded-lg text-xs font-bold transition-colors"
+            >
+              Pilih Semua
             </button>
             <button 
               onClick={handleBulkShare}
@@ -501,7 +513,7 @@ const History = () => {
                 >
                   {/* Summary Header (Always Visible) */}
                   <div 
-                    className={`px-3 py-2.5 sm:px-4 sm:py-3 flex flex-wrap items-center justify-between gap-3 cursor-pointer transition-colors ${isSelectMode && selectedIds.includes(itemId) ? 'bg-error/5' : ''}`}
+                    className={`relative px-3 py-2.5 sm:px-4 sm:py-3 flex flex-wrap items-center justify-between gap-3 cursor-pointer transition-colors ${isSelectMode && selectedIds.includes(itemId) ? 'bg-error/5' : ''}`}
                     onClick={() => {
                       if (isSelectMode) {
                         setSelectedIds(prev => prev.includes(itemId) ? prev.filter(i => i !== itemId) : [...prev, itemId]);
@@ -539,6 +551,9 @@ const History = () => {
                         expand_more
                       </span>
                     </div>
+                    <span className="absolute bottom-0.5 right-12 md:right-16 text-[8px] text-on-surface-variant/40 italic pointer-events-none">
+                      last update by: {item.updatedBy || item.createdBy || 'unknown'}
+                    </span>
                   </div>
 
                   {/* Expanded Details Section */}

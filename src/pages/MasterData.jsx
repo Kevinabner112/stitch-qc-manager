@@ -271,13 +271,13 @@ const MasterData = () => {
   return (
     <div className="p-lg flex flex-col gap-lg max-w-[1440px] mx-auto">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-sm">
-        <div>
-          <h1 className="text-headline-lg-mobile md:text-headline-lg font-bold text-on-surface">Master Data</h1>
-          <p className="text-body-md text-on-surface-variant mt-xs">Manage system reference records</p>
+      <div className="flex flex-col items-center gap-md text-center mb-6">
+        <div className="w-full">
+          <h1 className="text-headline-lg-mobile md:text-headline-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary" style={{ fontFamily: '"Kollektif", sans-serif' }}>Master Data</h1>
+          <p className="text-body-md text-white/90 mt-xs">Manage system reference records</p>
         </div>
         
-        <div className="w-full md:w-auto flex flex-col sm:flex-row gap-sm">
+        <div className="w-full flex flex-col sm:flex-row justify-center gap-sm">
           {/* Search */}
           <div className="relative w-full sm:w-64">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>

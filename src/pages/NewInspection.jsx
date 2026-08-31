@@ -441,30 +441,24 @@ const NewInspection = () => {
         );
       })}
 
-      <div className="flex justify-center mt-2">
+      <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6 mb-8">
         <button 
           onClick={addNewItemCard}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-lg hover:bg-surface-container-low transition-colors shadow-sm"
+          className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-primary font-bold rounded-lg hover:bg-surface-container-low transition-colors shadow-sm w-full sm:w-auto"
         >
           <span className="material-symbols-outlined">add_circle</span>
           TAMBAHKAN ITEM LAINNYA
         </button>
-      </div>
 
-      {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-outline-variant/30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-        <div className="max-w-[1440px] mx-auto flex justify-end">
+        {isAllValid && (
           <button 
-            disabled={!isAllValid}
             onClick={handleSubmit}
-            className={`px-10 py-3 rounded-lg font-bold shadow-md transition-all flex items-center gap-2 ${
-              isAllValid ? 'bg-[#2563EB] text-white hover:bg-blue-700 hover:-translate-y-0.5' : 'bg-surface-variant text-on-surface-variant cursor-not-allowed opacity-70'
-            }`}
+            className="flex items-center justify-center gap-2 px-10 py-3 bg-[#2563EB] text-white font-bold rounded-lg shadow-md hover:bg-blue-700 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
           >
             <span className="material-symbols-outlined text-[20px]">save</span>
-            SIMPAN SEMUA ({itemsList.length} ITEM)
+            SUBMIT
           </button>
-        </div>
+        )}
       </div>
 
       {/* New Supplier Modal */}

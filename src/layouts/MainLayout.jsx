@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Component } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -35,7 +36,10 @@ class ErrorBoundary extends Component {
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [installPrompt, setInstallPrompt] = useState(null);
+  
+  const { user, role, userData, logout } = useAuthStore();
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -61,21 +65,29 @@ const MainLayout = () => {
     }
   };
 
-  const navItems = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-    { path: '/inspect', icon: 'add_box', label: 'Inspect' },
-    { path: '/history', icon: 'history', label: 'History' },
-    { path: '/suppliers', icon: 'assessment', label: 'Suppliers' },
-    { path: '/master', icon: 'database', label: 'Master' },
+  const allNavItems = [
+    { path: '/dashboard', icon: 'dashboard', label: 'Dashboard', roles: ['admin', 'inspector', 'viewer'] },
+    { path: '/inspect', icon: 'add_box', label: 'Inspect', roles: ['admin', 'inspector'] },
+    { path: '/history', icon: 'history', label: 'History', roles: ['admin', 'inspector', 'viewer'] },
+    { path: '/suppliers', icon: 'assessment', label: 'Suppliers', roles: ['admin', 'inspector'] },
+    { path: '/master', icon: 'database', label: 'Master', roles: ['admin', 'inspector'] },
+    { path: '/users', icon: 'group', label: 'Users', roles: ['admin'] },
   ];
+
+  const navItems = allNavItems.filter(item => item.roles.includes(role || 'inspector'));
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
       {/* Desktop Header */}
       <header className="hidden md:flex justify-between items-center px-md h-16 w-full top-0 bg-[#0f172a] shadow-sm z-50 fixed">
         <div className="flex items-center gap-sm hover:bg-on-surface-variant/10 transition-colors duration-200 p-2 rounded-lg cursor-pointer">
-          <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>factory</span>
-          <span className="text-headline-md font-bold text-white">Quality Manager</span>
+          <img src="/logo.png" alt="QCInc Logo" className="h-8 w-auto object-contain bg-white rounded-md p-0.5" />
+          <span className="text-headline-md font-bold text-white">{userData?.username || user?.email?.split('@')[0] || 'QCInc'}</span>
         </div>
         
         <nav className="flex gap-lg items-center">
@@ -101,13 +113,40 @@ const MainLayout = () => {
           )}
         </nav>
         
-        <button className="text-outline-variant hover:bg-on-surface-variant/10 p-2 rounded-full transition-colors duration-200">
-          <span className="material-symbols-outlined">filter_list</span>
-        </button>
+        <div className="flex items-center gap-4">
+          {user && (
+            <NavLink to="/account" className="hidden lg:flex flex-col items-end hover:bg-white/10 p-2 rounded-lg cursor-pointer transition-colors" title="Account Settings">
+              <span className="text-body-sm text-white font-medium leading-tight">{userData?.username || user.email.split('@')[0]}</span>
+              <span className="text-[10px] text-primary-container bg-primary/20 px-2 rounded-full uppercase font-bold tracking-wider mt-0.5 border border-primary/30">{role}</span>
+            </NavLink>
+          )}
+          <button onClick={handleLogout} className="text-outline-variant hover:text-white hover:bg-error/20 p-2 rounded-full transition-colors duration-200" title="Logout">
+            <span className="material-symbols-outlined">logout</span>
+          </button>
+        </div>
       </header>
 
       {/* Spacer for desktop header */}
       <div className="hidden md:block w-full h-16"></div>
+
+      {/* Mobile Header */}
+      <header className="md:hidden flex justify-between items-center px-4 h-14 w-full top-0 bg-[#0f172a] shadow-sm z-40 fixed">
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="QCInc Logo" className="h-7 w-auto object-contain bg-white rounded p-0.5" />
+          <span className="text-title-md font-bold text-white">{userData?.username || user?.email?.split('@')[0] || 'QCInc'}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <NavLink to="/account" className="text-outline-variant hover:text-white p-1.5 rounded-full transition-colors duration-200" title="Account Settings">
+            <span className="material-symbols-outlined">manage_accounts</span>
+          </NavLink>
+          <button onClick={handleLogout} className="text-outline-variant hover:text-error p-1.5 rounded-full transition-colors duration-200" title="Logout">
+            <span className="material-symbols-outlined">logout</span>
+          </button>
+        </div>
+      </header>
+      
+      {/* Spacer for mobile header */}
+      <div className="md:hidden w-full h-14"></div>
 
       {/* Mobile Install Banner (if prompt is available) */}
       {installPrompt && (
@@ -126,7 +165,7 @@ const MainLayout = () => {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 w-full max-w-[1440px] mx-auto p-container-margin md:p-lg md:mt-16 overflow-x-hidden ${installPrompt ? 'mt-12' : ''}`}>
+      <main className={`flex-1 w-full max-w-[1440px] mx-auto p-container-margin md:p-lg md:mt-16 ${installPrompt ? 'mt-12' : ''}`}>
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>

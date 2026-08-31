@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db } from '../config/firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { useAuthStore } from './useAuthStore';
 
 // Keep initial mock data in case we want to seed
 const initialSuppliers = [
@@ -95,7 +96,12 @@ export const useInspectionStore = create((set, get) => ({
   // Inspection Actions
   addInspection: async (inspection) => {
     try {
-      const newDoc = { ...inspection, createdAt: new Date().toISOString() };
+      const user = useAuthStore.getState().user;
+      const newDoc = { 
+        ...inspection, 
+        createdAt: new Date().toISOString(),
+        createdBy: user ? user.email : 'Unknown'
+      };
       await addDoc(collection(db, 'inspections'), newDoc);
     } catch (error) {
       console.error("Error adding inspection: ", error);
@@ -112,7 +118,13 @@ export const useInspectionStore = create((set, get) => ({
   
   updateInspection: async (firebaseId, data) => {
     try {
-      await updateDoc(doc(db, 'inspections', firebaseId), data);
+      const user = useAuthStore.getState().user;
+      const updateData = {
+        ...data,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user ? user.email : 'Unknown'
+      };
+      await updateDoc(doc(db, 'inspections', firebaseId), updateData);
     } catch (error) {
       console.error("Error updating inspection: ", error);
     }
