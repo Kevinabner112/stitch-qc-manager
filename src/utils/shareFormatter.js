@@ -9,20 +9,23 @@ const calculateRates = (qInspected, qPassed, qRejected) => {
   const passRate = inspected > 0 ? Math.round((passed / inspected) * 100) : 0;
   const rejRate = inspected > 0 ? Math.round((rejected / inspected) * 100) : 0;
 
-  let status = '✅ LULUS SEMPURNA (100%)';
+  let status = '✅ Lulus Sempurna (100%)';
   if (rejected > 0 || passRate < 100) {
     if (passRate >= 90) {
-      status = `⚠️ LULUS BERSYARAT (${passRate}%)`;
+      status = `⚠️ Lulus Bersyarat (${passRate}%)`;
     } else {
-      status = `❌ REJECT / TIDAK LULUS (${passRate}%)`;
+      status = `❌ Reject / Tidak Lulus (${passRate}%)`;
     }
   }
 
   return { inspected, passed, rejected, passRate, rejRate, status };
 };
 
+const BORDER_LINE = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+const ITEM_DIVIDER = '────────────────────────────────';
+
 /**
- * Format single inspection report with clean border boxes
+ * Format single inspection report with top and bottom border only
  */
 export const formatSingleShareText = (item) => {
   const dateStr = item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID');
@@ -34,49 +37,29 @@ export const formatSingleShareText = (item) => {
   );
 
   return [
-    `╔══════════════════════════════════╗`,
-    `       📋 *LAPORAN INSPEKSI QC*`,
-    `╚══════════════════════════════════╝`,
+    BORDER_LINE,
+    `*Laporan Inspeksi QC*`,
     ``,
-    `┌─── 📌 *INFORMASI ITEM* ──────────`,
-    `│ • *Tanggal*   : ${dateStr}`,
-    `│ • *Supplier*  : ${item.supplier || '-'}`,
-    `│ • *Item No*   : ${item.itemNo || '-'}`,
-    `│ • *Nama Item* : ${item.itemName || '-'}`,
-    `└──────────────────────────────────`,
+    `Tanggal: ${dateStr}`,
+    `Supplier: ${item.supplier || '-'}`,
+    `Item: ${item.itemNo || '-'} - ${item.itemName || 'N/A'}`,
     ``,
-    `┌─── 📊 *HASIL INSPEKSI* ──────────`,
-    `│ • *Inspected* : ${inspected} ${uom}`,
-    `│ • *Passed*    : ${passed} ${uom} (${passRate}%)`,
-    `│ • *Rejected*  : ${rejected} ${uom} (${rejRate}%)`,
-    `│ • *Status*    : ${status}`,
-    `└──────────────────────────────────`,
+    `*Hasil*`,
+    `Inspected: ${inspected} ${uom}`,
+    `Passed: ${passed} ${uom} (${passRate}%)`,
+    `Rejected: ${rejected} ${uom} (${rejRate}%)`,
+    `Status: ${status}`,
     ``,
-    `┌─── 🏷️ *DEFECT & CATATAN* ────────`,
-    `│ • *Kategori*  : ${item.defectCategory || '-'}`,
-    `│ • *Catatan*   : ${item.notes || '-'}`,
-    `└──────────────────────────────────`,
-    ``,
-    `════════════════════════════════════`,
-    `_Stitch Enterprise Quality Control_`
+    `*Kategori Defect*: ${item.defectCategory || '-'}`,
+    `*Catatan*: ${item.notes || '-'}`,
+    BORDER_LINE
   ].join('\n');
 };
 
 /**
- * Format bulk inspections report with individual framed cards
+ * Format bulk inspections report with clean top and bottom borders
  */
 export const formatBulkShareText = (selectedItems) => {
-  const todayStr = new Date().toLocaleDateString('id-ID');
-  
-  const header = [
-    `╔══════════════════════════════════╗`,
-    `   📋 *REKAP LAPORAN INSPEKSI QC*`,
-    `   🗓️ Tanggal: ${todayStr}`,
-    `   📦 Total: ${selectedItems.length} Data Inspeksi`,
-    `╚══════════════════════════════════╝`,
-    ``
-  ].join('\n');
-
   const itemsFormatted = selectedItems.map((item, index) => {
     const dateStr = item.date || new Date(item.createdAt || Date.now()).toLocaleDateString('id-ID');
     const uom = item.uom || 'Pcs';
@@ -87,25 +70,25 @@ export const formatBulkShareText = (selectedItems) => {
     );
 
     return [
-      `┏━━━ 📌 *ITEM #${index + 1}* ━━━━━━━━━━━━━━━━━`,
-      `┃ • *Tanggal*   : ${dateStr}`,
-      `┃ • *Supplier*  : ${item.supplier || '-'}`,
-      `┃ • *Item*      : ${item.itemNo || '-'} - ${item.itemName || 'N/A'}`,
-      `┃ • *Inspected* : ${inspected} ${uom}`,
-      `┃ • *Passed*    : ${passed} ${uom} (${passRate}%)`,
-      `┃ • *Rejected*  : ${rejected} ${uom} (${rejRate}%)`,
-      `┃ • *Status*    : ${status}`,
-      `┃ • *Defect*    : ${item.defectCategory || '-'}`,
-      `┃ • *Catatan*   : ${item.notes || '-'}`,
-      `┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+      `*Laporan Inspeksi QC #${index + 1}*`,
+      `Tanggal: ${dateStr}`,
+      `Supplier: ${item.supplier || '-'}`,
+      `Item: ${item.itemNo || '-'} - ${item.itemName || 'N/A'}`,
+      ``,
+      `*Hasil*`,
+      `Inspected: ${inspected} ${uom}`,
+      `Passed: ${passed} ${uom} (${passRate}%)`,
+      `Rejected: ${rejected} ${uom} (${rejRate}%)`,
+      `Status: ${status}`,
+      ``,
+      `*Kategori Defect*: ${item.defectCategory || '-'}`,
+      `*Catatan*: ${item.notes || '-'}`
     ].join('\n');
-  }).join('\n\n');
+  }).join(`\n\n${ITEM_DIVIDER}\n\n`);
 
-  const footer = [
-    ``,
-    `════════════════════════════════════`,
-    `_Stitch Enterprise Quality Control_`
+  return [
+    BORDER_LINE,
+    itemsFormatted,
+    BORDER_LINE
   ].join('\n');
-
-  return `${header}${itemsFormatted}${footer}`;
 };
